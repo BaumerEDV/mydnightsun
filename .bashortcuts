@@ -1,2 +1,2 @@
-cargo check && cargo clippy -- -D clippy::all -W clippy::pedantic
-cargo check && cargo clippy -- -D clippy::all -D clippy::cargo -W clippy::pedantic
+cargo clippy -- -D clippy::all -W clippy::pedantic
+cargo clippy -- -D clippy::all -D clippy::cargo -W clippy::pedantic
