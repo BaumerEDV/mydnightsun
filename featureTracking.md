@@ -17,8 +17,13 @@ Nothing
 
 
 ## Roadstops / Immediate Goals
-- Read UTF-8 file and log it to console
 - make that file navigable in the TUI as a single screen application
 - load filters from a file
 - apply filters
 - add coloring to filters and display those colors
+
+## Technical Tasks
+- CI tests
+- github action builds
+- nix derivation
+- move command line arguments to clap
