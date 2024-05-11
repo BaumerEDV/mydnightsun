@@ -9,5 +9,6 @@ pkgs.mkShell
      cargo
      rustc
      rust-analyzer
+     clippy
    ];
 }
