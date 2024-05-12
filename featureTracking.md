@@ -28,3 +28,5 @@ Nothing
 - github action builds
 - nix derivation
 - move command line arguments to clap
+- figure out if the ratatui demo way is actually the correct way to render - seems like a lot of resource. possibly use callback on change instead?
+- graciously exit and tear down the terminal modifications if there is a panic

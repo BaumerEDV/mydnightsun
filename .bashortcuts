@@ -1,2 +1,3 @@
 cargo clippy -- -D clippy::all -W clippy::pedantic
+cargo run -- ~/log.log
 cargo clippy -- -D clippy::all -D clippy::cargo -W clippy::pedantic
