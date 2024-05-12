@@ -18,6 +18,7 @@ Nothing
 
 ## Roadstops / Immediate Goals
 - make that file navigable in the TUI as a single screen application
+  - ratatui with crossterm backend for windows support
 - load filters from a file
 - apply filters
 - add coloring to filters and display those colors
