@@ -19,11 +19,11 @@ use std::{
 
 fn main() -> Result<(), String> {
     let filters = vec![
-        //Filter {
-        //    regex: Regex::new(".*").unwrap(),
-        //    foreground_color: Some(Color::Black),
-        //    background_color: Some(Color::White),
-        //},
+        Filter {
+            regex: Regex::new(".*").unwrap(),
+            foreground_color: Some(Color::Black),
+            background_color: Some(Color::White),
+        },
         Filter {
             regex: Regex::new("def").unwrap(),
             foreground_color: Some(Color::Green),
@@ -198,10 +198,7 @@ impl<'a> Model<'a> {
 
     fn scroll_horizontal_away_from_line_start(&mut self, amount: usize) {
         let amount = min(amount, usize::MAX - self.text_offset_horizontal);
-        self.text_offset_horizontal = min(
-            max(self.log.len() - 1, 0),
-            self.text_offset_horizontal + amount,
-        );
+        self.text_offset_horizontal += amount;
     }
 
     fn toggle_line_wrapping(&mut self) {
