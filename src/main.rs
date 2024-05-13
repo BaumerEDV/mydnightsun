@@ -4,15 +4,15 @@ use crossterm::{
     ExecutableCommand,
 };
 use ratatui::{
-    prelude::{CrosstermBackend, Stylize, Terminal},
+    prelude::{CrosstermBackend, Terminal},
     text::Line,
-    widgets::{self, Paragraph},
+    widgets::{Block, Paragraph, Wrap},
 };
 use std::{
     cmp::{max, min},
     fs,
     io::stdout,
-    usize,
+    u16, usize,
 };
 
 fn main() -> Result<(), String> {
@@ -34,13 +34,26 @@ fn main() -> Result<(), String> {
             .draw(|frame| {
                 let area = frame.size();
                 frame.render_widget(
-                    Paragraph::new(
-                        model
-                            .get_screen_slice(area.height.into())
-                            .iter()
-                            .map(|line| Line::from(*line))
-                            .collect::<Vec<_>>(),
-                    ),
+                    {
+                        let paragraph = Paragraph::new(
+                            model
+                                .get_screen_slice(area.height.into())
+                                .iter()
+                                .map(|line| Line::raw(*line))
+                                .collect::<Vec<_>>(),
+                        )
+                        .scroll((0, u16::try_from(model.text_offset_horizontal).unwrap_or(u16::MAX))) // can't scroll vertically
+                        // with u16 in log files, number too small, so got to handle that with
+                        // get_screen_slice on the model. 65k horizontal scroll should be acceptable
+                        // though
+                        .block(Block::bordered().title(&*invocation_configuration.target_logfile));
+
+                        if model.line_wrapping {
+                            paragraph.wrap(Wrap { trim: false })
+                        } else {
+                            paragraph
+                        }
+                    },
                     area,
                 );
             })
@@ -60,6 +73,9 @@ fn main() -> Result<(), String> {
                         KeyCode::Char('u') => model.scroll_lines_up(
                             terminal.size().map_or(0, |area| (area.height / 2).into()),
                         ),
+                        KeyCode::Char('h') => model.scroll_horizontal_towars_line_start(1),
+                        KeyCode::Char('l') => model.scroll_horizontal_away_from_line_start(1),
+                        KeyCode::Char('w') => model.toggle_line_wrapping(),
                         _ => {}
                     };
                 }
@@ -97,30 +113,54 @@ struct InvocationConfiguration {
 #[derive(Default)]
 struct Model<'a> {
     log: Vec<&'a str>,
-    text_offset: usize,
+    text_offset_vertical: usize,
+    text_offset_horizontal: usize,
+    line_wrapping: bool,
 }
 
 impl<'a> Model<'a> {
     fn new(log: Vec<&'a str>) -> Self {
         Self {
             log,
-            text_offset: 0,
+            text_offset_vertical: 0,
+            text_offset_horizontal: 0,
+            line_wrapping: false,
         }
     }
 
     fn get_screen_slice(&self, length: usize) -> &[&str] {
-        let start = min(self.log.len(), self.text_offset);
-        let end = min(self.log.len(), self.text_offset + length);
+        let start = min(self.log.len(), self.text_offset_vertical);
+        let end = min(self.log.len(), self.text_offset_vertical + length);
         &self.log[start..end]
     }
 
     fn scroll_lines_up(&mut self, amount: usize) {
-        let amount = min(amount, self.text_offset);
-        self.text_offset -= amount;
+        let amount = min(amount, self.text_offset_vertical);
+        self.text_offset_vertical -= amount;
     }
 
     fn scroll_lines_down(&mut self, amount: usize) {
-        let amount = min(amount, usize::MAX - self.text_offset);
-        self.text_offset = min(max(self.log.len() - 1, 0), self.text_offset + amount);
+        let amount = min(amount, usize::MAX - self.text_offset_vertical);
+        self.text_offset_vertical = min(
+            max(self.log.len() - 1, 0),
+            self.text_offset_vertical + amount,
+        );
+    }
+
+    fn scroll_horizontal_towars_line_start(&mut self, amount: usize) {
+        let amount = min(amount, self.text_offset_horizontal);
+        self.text_offset_horizontal -= amount;
+    }
+
+    fn scroll_horizontal_away_from_line_start(&mut self, amount: usize) {
+        let amount = min(amount, usize::MAX - self.text_offset_horizontal);
+        self.text_offset_horizontal = min(
+            max(self.log.len() - 1, 0),
+            self.text_offset_horizontal + amount,
+        );
+    }
+
+    fn toggle_line_wrapping(&mut self) {
+        self.line_wrapping = !self.line_wrapping;
     }
 }

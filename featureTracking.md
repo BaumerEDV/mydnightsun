@@ -3,6 +3,8 @@
 ## Completed
 - open file from provided path
 - scroll vertically inside file
+- scroll horizontally inside file
+- toggle line wrapping
 
 ## Vision / Roadmap
 - display navigable view of text file from disk 
@@ -20,10 +22,10 @@
 
 
 ## Roadstops / Immediate Goals
-- make that file horizontally navigable in the TUI as a single screen application
-- load filters from a file
 - apply filters
 - add coloring to filters and display those colors
+- load filters from a file
+- jump to start of line horizontally
 
 ## Technical Tasks
 - CI tests
