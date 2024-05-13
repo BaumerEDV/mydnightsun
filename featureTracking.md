@@ -18,6 +18,8 @@
 - support live filtering for files "trickling in" through stdio
 - performance increase through multithreading
 - handle files that do not fit into RAM
+- can't scroll further to the right than longest line (on screen? account for line wrapping toggle?)
+- enable scrolling for short files with lines that when wrapped will be larger than the screen
 
 
 ## Roadstops / Immediate Goals
