@@ -5,11 +5,10 @@
 - scroll vertically inside file
 - scroll horizontally inside file
 - toggle line wrapping
+- backend support for filtering and coloring
 
 ## Vision / Roadmap
-- display navigable view of text file from disk 
 - filter which lines are displayed with user-defined regex read from a provided file
-- color lines matching user-defined regex and color instructions
 - show keybind help info
 - toggle filters live in the viewer
 - simple live text filter
@@ -22,12 +21,11 @@
 
 
 ## Roadstops / Immediate Goals
-- apply filters
-- add coloring to filters and display those colors
 - load filters from a file
 - jump to start of line horizontally
 
 ## Technical Tasks
+- break up into modules
 - CI tests
 - github action builds
 - nix derivation

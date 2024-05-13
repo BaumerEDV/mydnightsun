@@ -5,9 +5,11 @@ use crossterm::{
 };
 use ratatui::{
     prelude::{CrosstermBackend, Terminal},
+    style::{Color, Style},
     text::Line,
     widgets::{Block, Paragraph, Wrap},
 };
+use regex::Regex;
 use std::{
     cmp::{max, min},
     fs,
@@ -16,9 +18,37 @@ use std::{
 };
 
 fn main() -> Result<(), String> {
+    let filters = vec![
+        //Filter {
+        //    regex: Regex::new(".*").unwrap(),
+        //    foreground_color: Some(Color::Black),
+        //    background_color: Some(Color::White),
+        //},
+        Filter {
+            regex: Regex::new("def").unwrap(),
+            foreground_color: Some(Color::Green),
+            background_color: Some(Color::Red),
+        },
+    ];
+
     let invocation_configuration = parse_args(std::env::args())?;
     let log = open_and_parse_log(&invocation_configuration.target_logfile)?;
-    let mut model = Model::new(log.lines().collect());
+
+    let log = log
+        .lines()
+        .map(FilteredLine::from)
+        .map(|line| {
+            let mut result = line;
+            for filter in &filters {
+                result = filter.apply(result);
+            }
+            result
+        })
+        .filter(|line| !line.filtered_out)
+        .collect();
+
+    //let mut model = Model::new(log.lines().collect());
+    let mut model = Model::new(log);
 
     // setup Ratatui
     stdout()
@@ -39,10 +69,24 @@ fn main() -> Result<(), String> {
                             model
                                 .get_screen_slice(area.height.into())
                                 .iter()
-                                .map(|line| Line::raw(*line))
+                                .map(|line| {
+                                    Line::styled(line.text, {
+                                        let mut style = Style::default();
+                                        if line.foreground_color.is_some() {
+                                            style = style.fg(line.foreground_color.unwrap());
+                                        }
+                                        if line.background_color.is_some() {
+                                            style = style.bg(line.background_color.unwrap());
+                                        }
+                                        style
+                                    })
+                                })
                                 .collect::<Vec<_>>(),
                         )
-                        .scroll((0, u16::try_from(model.text_offset_horizontal).unwrap_or(u16::MAX))) // can't scroll vertically
+                        .scroll((
+                            0,
+                            u16::try_from(model.text_offset_horizontal).unwrap_or(u16::MAX),
+                        )) // can't scroll vertically
                         // with u16 in log files, number too small, so got to handle that with
                         // get_screen_slice on the model. 65k horizontal scroll should be acceptable
                         // though
@@ -83,9 +127,9 @@ fn main() -> Result<(), String> {
         }
     }
 
-    for line in log.lines() {
-        println!("{line}");
-    }
+    //for line in log.lines() {
+    //    println!("{line}");
+    //}
 
     stdout()
         .execute(LeaveAlternateScreen)
@@ -112,14 +156,14 @@ struct InvocationConfiguration {
 
 #[derive(Default)]
 struct Model<'a> {
-    log: Vec<&'a str>,
+    log: Vec<FilteredLine<'a>>,
     text_offset_vertical: usize,
     text_offset_horizontal: usize,
     line_wrapping: bool,
 }
 
 impl<'a> Model<'a> {
-    fn new(log: Vec<&'a str>) -> Self {
+    fn new(log: Vec<FilteredLine<'a>>) -> Self {
         Self {
             log,
             text_offset_vertical: 0,
@@ -128,7 +172,7 @@ impl<'a> Model<'a> {
         }
     }
 
-    fn get_screen_slice(&self, length: usize) -> &[&str] {
+    fn get_screen_slice(&self, length: usize) -> &[FilteredLine] {
         let start = min(self.log.len(), self.text_offset_vertical);
         let end = min(self.log.len(), self.text_offset_vertical + length);
         &self.log[start..end]
@@ -162,5 +206,40 @@ impl<'a> Model<'a> {
 
     fn toggle_line_wrapping(&mut self) {
         self.line_wrapping = !self.line_wrapping;
+    }
+}
+
+struct FilteredLine<'a> {
+    text: &'a str,
+    filtered_out: bool,
+    foreground_color: Option<Color>,
+    background_color: Option<Color>,
+}
+
+impl<'a> From<&'a str> for FilteredLine<'a> {
+    fn from(value: &'a str) -> Self {
+        FilteredLine {
+            text: value,
+            filtered_out: true,
+            foreground_color: None,
+            background_color: None,
+        }
+    }
+}
+
+struct Filter {
+    regex: Regex,
+    foreground_color: Option<Color>,
+    background_color: Option<Color>,
+}
+
+impl Filter {
+    fn apply<'b>(&self, mut line: FilteredLine<'b>) -> FilteredLine<'b> {
+        if self.regex.is_match(line.text) {
+            line.filtered_out = false;
+            line.foreground_color = self.foreground_color.or(line.foreground_color);
+            line.background_color = self.background_color.or(line.background_color);
+        }
+        line
     }
 }
