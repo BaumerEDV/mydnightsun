@@ -10,29 +10,23 @@ use ratatui::{
     widgets::{Block, Paragraph, Wrap},
 };
 use regex::Regex;
+use serde::Deserialize;
 use std::{
     cmp::{max, min},
     fs,
     io::stdout,
+    str::FromStr,
     u16, usize,
 };
 
 fn main() -> Result<(), String> {
-    let filters = vec![
-        Filter {
-            regex: Regex::new(".*").unwrap(),
-            foreground_color: Some(Color::Black),
-            background_color: Some(Color::White),
-        },
-        Filter {
-            regex: Regex::new("def").unwrap(),
-            foreground_color: Some(Color::Green),
-            background_color: Some(Color::Red),
-        },
-    ];
-
     let invocation_configuration = parse_args(std::env::args())?;
     let log = open_and_parse_log(&invocation_configuration.target_logfile)?;
+
+    let filters = match invocation_configuration.target_filterfile {
+        Some(path) => open_and_parse_filters(Some(&path))?,
+        None => open_and_parse_filters(None)?,
+    };
 
     let log = log
         .lines()
@@ -127,10 +121,6 @@ fn main() -> Result<(), String> {
         }
     }
 
-    //for line in log.lines() {
-    //    println!("{line}");
-    //}
-
     stdout()
         .execute(LeaveAlternateScreen)
         .map_err(|e| e.to_string())?;
@@ -138,11 +128,43 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 
+fn open_and_parse_filters(path: Option<&str>) -> Result<Vec<Filter>, String> {
+    if path.is_none() {
+        Ok(vec![Filter {
+            regex: Regex::new(".*").unwrap(),
+            foreground_color: None,
+            background_color: None,
+        }])
+    } else {
+        let path = path.unwrap();
+        let file_contents =
+            fs::read_to_string(path).map_err(|_| format!("Unable to read file: {path}"))?;
+        let raw_filters: FilterFile = serde_json::from_str(&file_contents).unwrap();
+        let converted_filters: Vec<Filter> = raw_filters
+            .filters
+            .into_iter()
+            .filter(|v| v.active.unwrap_or(true))
+            .map(|v| Filter::try_from(v).unwrap())
+            .collect();
+        if converted_filters.is_empty() {
+            return Ok(vec![Filter {
+                regex: Regex::new(".*").unwrap(),
+                foreground_color: None,
+                background_color: None,
+            }]);
+        }
+        Ok(converted_filters)
+    }
+}
+
 fn parse_args(mut args: std::env::Args) -> Result<InvocationConfiguration, String> {
     args.next().expect("invocation name must be present");
     match args.next() {
         None => Err("no log file path was provided as the first argument".to_string()),
-        Some(target_logfile) => Ok(InvocationConfiguration { target_logfile }),
+        Some(target_logfile) => Ok(InvocationConfiguration {
+            target_logfile,
+            target_filterfile: args.next(),
+        }),
     }
 }
 
@@ -152,6 +174,7 @@ fn open_and_parse_log(path: &str) -> Result<String, String> {
 
 struct InvocationConfiguration {
     target_logfile: String,
+    target_filterfile: Option<String>,
 }
 
 #[derive(Default)]
@@ -224,10 +247,39 @@ impl<'a> From<&'a str> for FilteredLine<'a> {
     }
 }
 
+// TODO implement deserialization in serde
 struct Filter {
     regex: Regex,
     foreground_color: Option<Color>,
     background_color: Option<Color>,
+}
+
+#[derive(Deserialize, Debug)]
+struct FilterFile {
+    filters: Vec<FilterInFile>,
+}
+
+#[derive(Deserialize, Debug)]
+struct FilterInFile {
+    regex: String,
+    foreground_color: Option<String>,
+    background_color: Option<String>,
+    active: Option<bool>,
+}
+
+impl TryFrom<FilterInFile> for Filter {
+    type Error = String;
+
+    fn try_from(value: FilterInFile) -> Result<Self, Self::Error> {
+        let regex = Regex::new(&value.regex).unwrap();
+        let foreground_color = value.foreground_color.map(|v| Color::from_str(&v).unwrap());
+        let background_color = value.background_color.map(|v| Color::from_str(&v).unwrap());
+        Ok(Filter {
+            regex,
+            foreground_color,
+            background_color,
+        })
+    }
 }
 
 impl Filter {
