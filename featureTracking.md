@@ -5,10 +5,9 @@
 - scroll vertically inside file
 - scroll horizontally inside file
 - toggle line wrapping
-- backend support for filtering and coloring
+- filter which lines are displayed (and in which color) with user-defined regex read from a provided JSON-file
 
 ## Vision / Roadmap
-- filter which lines are displayed with user-defined regex read from a provided file
 - show keybind help info
 - toggle filters live in the viewer
 - simple live text filter
@@ -23,10 +22,11 @@
 
 
 ## Roadstops / Immediate Goals
-- load filters from a file
+- filter json documentation
 - jump to start of line horizontally
 
 ## Technical Tasks
+- graceful error handling
 - break up into modules
 - CI tests
 - github action builds
